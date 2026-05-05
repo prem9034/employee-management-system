@@ -4,9 +4,11 @@ import com.springcrud1.DTO.ApplyLeaveDTO;
 import com.springcrud1.entity.LeaveBalance;
 import com.springcrud1.entity.LeaveRequest;
 import com.springcrud1.entity.LeaveType;
+import com.springcrud1.entity.User;
 import com.springcrud1.repository.LeaveBalanceRepository;
 import com.springcrud1.repository.LeaveRequestRepository;
 import com.springcrud1.repository.LeaveTypeRepository;
+import com.springcrud1.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,13 @@ public class LeaveService {
 
     @Autowired
     private LeaveTypeRepository leaveTypeRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
+
 
     // 🔥 APPLY LEAVE
     @Transactional
@@ -51,7 +60,7 @@ public class LeaveService {
                 .orElseThrow(() -> new RuntimeException("Invalid Leave Type"));
 
         int year = LocalDate.now().getYear();
-
+        System.out.println("Employee ID: " + employeeId+", Leave Type ID: " + dto.getLeaveTypeId() + ", Year: " + year);
         LeaveBalance balance = leaveBalanceRepository
                 .findByEmployeeIdAndLeaveTypeIdAndYear(employeeId, dto.getLeaveTypeId(), year)
                 .orElseThrow(() -> new RuntimeException("Leave balance not found"));
@@ -99,7 +108,15 @@ public class LeaveService {
         balance.setRemaining(balance.getRemaining() - leave.getTotalDays());
 
         leave.setStatus("APPROVED");
+        // 🔥 SEND EMAIL
+        User user = userRepository.findById(leave.getEmployeeId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
+        emailService.sendLeaveApprovedMail(
+                user.getUsername(),   // assuming username = email
+                leave.getStartDate().toString(),
+                leave.getEndDate().toString()
+        );
         return "Leave Approved";
     }
 
